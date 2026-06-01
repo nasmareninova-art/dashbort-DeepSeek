@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
     <title>Дашборд: Производство топливных брикетов в РФ</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.min.js"></script>
     <style>
         * {
             box-sizing: border-box;
@@ -30,12 +31,6 @@
             background-clip: text;
             -webkit-background-clip: text;
             color: transparent;
-        }
-        .header p {
-            color: #2c5a6e;
-            margin-top: 0.4rem;
-            border-left: 4px solid #2b8c5e;
-            padding-left: 1rem;
         }
         .kpi-grid {
             display: grid;
@@ -68,7 +63,6 @@
             margin-bottom: 2rem;
             display: flex;
             flex-wrap: wrap;
-            align-items: flex-end;
             gap: 1.2rem;
             border: 1px solid #e0edf2;
         }
@@ -77,18 +71,12 @@
             flex-direction: column;
             gap: 0.4rem;
         }
-        .filter-group label {
-            font-size: 0.75rem;
-            font-weight: 600;
-            color: #2c6e4f;
-        }
         select, input {
             background: #fefefe;
             border: 1px solid #cbdde6;
             padding: 0.6rem 0.8rem;
             border-radius: 40px;
             font-size: 0.85rem;
-            font-family: inherit;
         }
         button {
             background: #2c6e4f;
@@ -100,26 +88,31 @@
             cursor: pointer;
             margin-top: 1.2rem;
         }
-        button:hover {
-            background: #1c543c;
+        .two-columns {
+            display: grid;
+            grid-template-columns: 1fr 1.2fr;
+            gap: 1.8rem;
+            margin-bottom: 2rem;
         }
-        .table-card {
+        .chart-card, .table-card {
             background: white;
             border-radius: 28px;
             padding: 1.2rem;
             border: 1px solid #e2edf2;
         }
-        .table-card h3 {
+        .chart-card h3, .table-card h3 {
             margin-bottom: 0.8rem;
-            font-size: 1.25rem;
             border-left: 4px solid #2b8c5e;
             padding-left: 0.5rem;
         }
+        canvas {
+            max-height: 320px;
+            width: 100%;
+        }
         .table-wrapper {
             overflow-x: auto;
-            max-height: 500px;
+            max-height: 450px;
             overflow-y: auto;
-            border-radius: 20px;
         }
         table {
             width: 100%;
@@ -131,24 +124,15 @@
             padding: 0.9rem 0.5rem;
             position: sticky;
             top: 0;
-            text-align: left;
-            font-weight: 700;
-            color: #1f543e;
         }
         td {
             padding: 0.7rem 0.5rem;
             border-bottom: 1px solid #e0ece6;
-            vertical-align: top;
-        }
-        footer {
-            text-align: center;
-            font-size: 0.7rem;
-            color: #6f9bb0;
-            margin-top: 2rem;
         }
         @media (max-width: 800px) {
-            body { padding: 1rem; }
-            .filters-panel { flex-direction: column; align-items: stretch; }
+            .two-columns {
+                grid-template-columns: 1fr;
+            }
         }
     </style>
 </head>
@@ -156,69 +140,47 @@
 <div class="dashboard-container">
     <div class="header">
         <h1>📊 Производство топливных брикетов в России</h1>
-        <p>Анализ объёмов производства, географии поставок и ключевых игроков (данные по 16 предприятиям)</p>
+        <p>Анализ объёмов производства, географии поставок и ключевых игроков (16 предприятий)</p>
     </div>
-
     <div class="kpi-grid">
         <div class="kpi-card"><h3>ВСЕГО ПРЕДПРИЯТИЙ</h3><div class="kpi-value" id="totalPlants">0</div></div>
-        <div class="kpi-card"><h3>СУММАРНЫЙ ОБЪЁМ (ТОНН/ГОД)</h3><div class="kpi-value" id="totalVolume">0</div><div style="font-size:0.8rem; color:#5f8b9c;">тонн</div></div>
-        <div class="kpi-card"><h3>СРЕДНИЙ ОБЪЁМ НА ЗАВОД</h3><div class="kpi-value" id="avgVolume">0</div><div style="font-size:0.8rem; color:#5f8b9c;">тонн</div></div>
+        <div class="kpi-card"><h3>СУММАРНЫЙ ОБЪЁМ (ТОНН/ГОД)</h3><div class="kpi-value" id="totalVolume">0</div></div>
+        <div class="kpi-card"><h3>СРЕДНИЙ ОБЪЁМ НА ЗАВОД</h3><div class="kpi-value" id="avgVolume">0</div></div>
         <div class="kpi-card"><h3>РЕГИОНОВ-УЧАСТНИКОВ</h3><div class="kpi-value" id="regionsCount">0</div></div>
     </div>
-
     <div class="filters-panel">
-        <div class="filter-group">
-            <label>📍 Регион базирования</label>
-            <select id="regionFilter"><option value="all">Все регионы</option></select>
-        </div>
-        <div class="filter-group">
-            <label>🔍 Направление поставок (ключевое слово)</label>
-            <input type="text" id="supplySearch" placeholder="напр.: Экспорт, Европа, СЗФО...">
-        </div>
-        <div class="filter-group">
-            <label>📦 Мин. объём производства (тонн)</label>
-            <input type="number" id="minVolumeFilter" value="0" min="0" step="500">
-        </div>
-        <div class="filter-group">
-            <button id="resetBtn">⟳ Сбросить фильтры</button>
-        </div>
+        <div class="filter-group"><label>📍 Регион</label><select id="regionFilter"><option value="all">Все регионы</option></select></div>
+        <div class="filter-group"><label>🔍 Поставки (ключ. слово)</label><input type="text" id="supplySearch" placeholder="Экспорт, Европа..."></div>
+        <div class="filter-group"><label>📦 Мин. объём (тонн)</label><input type="number" id="minVolumeFilter" value="0" min="0"></div>
+        <div class="filter-group"><button id="resetBtn">Сбросить фильтры</button></div>
     </div>
-
-    <div class="table-card">
-        <h3>📋 Производители брикетов</h3>
-        <div class="table-wrapper">
-            <table id="dataTable">
-                <thead>
-                    <tr><th>Название предприятия</th><th>Регион</th><th>Объём (т/год)</th><th>Основные направления поставок</th></tr>
-                </thead>
-                <tbody id="tableBody"></tbody>
-            </table>
-        </div>
+    <div class="two-columns">
+        <div class="chart-card"><h3>ТОП-10 производителей</h3><canvas id="topChart"></canvas></div>
+        <div class="table-card"><h3>Производители</h3><div class="table-wrapper"><table id="dataTable"><thead><tr><th>Предприятие</th><th>Регион</th><th>Объём (т/год)</th><th>Поставки</th></tr></thead><tbody id="tableBody"></tbody></table></div></div>
     </div>
-    <footer>Источник: отраслевая сводка | Интерактивный дашборд</footer>
 </div>
-
 <script>
     const enterpriseData = [
         { name: "ООО «Лестех»", region: "Ленинградская область", volume: 15000, supply: "Экспорт (Европа), опт по РФ, розница в СЗФО" },
-        { name: "Группа компаний «Светлые поля» («ЛПК»)", region: "Новгородская область", volume: 25000, supply: "Экспорт (Япония, Ю. Корея), федеральные сети РФ" },
+        { name: "Группа компаний «Светлые поля»", region: "Новгородская область", volume: 25000, supply: "Экспорт (Япония, Ю. Корея), федеральные сети РФ" },
         { name: "ООО «ЭкоЭнергоТех»", region: "Тверская область", volume: 8000, supply: "Центральная Россия, локальная розница" },
         { name: "ООО «Русские брикеты»", region: "Кировская область", volume: 12000, supply: "Экспорт (Европа), Уральский федеральный округ" },
-        { name: "ООО «БиоТопливо-Инвест»", region: "Калужская область", volume: 5000, supply: "Московский регион, центральный федеральный округ" },
-        { name: "АО «Устьянский лесопромышленный комплекс»", region: "Архангельская область", volume: 18000, supply: "Экспорт (Скандинавия), СЗФО" },
-        { name: "ООО «Брикетный завод «Тайга»", region: "Иркутская область", volume: 10000, supply: "Сибирский федеральный округ, экспорт (Китай, Монголия)" },
+        { name: "ООО «БиоТопливо-Инвест»", region: "Калужская область", volume: 5000, supply: "Московский регион, ЦФО" },
+        { name: "АО «Устьянский ЛПК»", region: "Архангельская область", volume: 18000, supply: "Экспорт (Скандинавия), СЗФО" },
+        { name: "ООО «Брикетный завод Тайга»", region: "Иркутская область", volume: 10000, supply: "СФО, экспорт (Китай, Монголия)" },
         { name: "ООО «Эко-Лес»", region: "Вологодская область", volume: 7000, supply: "СЗФО, ЦФО" },
-        { name: "ГК «Титан»", region: "Архангельская область", volume: 20000, supply: "Крупный экспорт (Европа, Азия), федеральные поставки" },
-        { name: "ООО «Вологодские биотопливные технологии»", region: "Вологодская область", volume: 6500, supply: "Северо-Западный федеральный округ, Санкт-Петербург" },
+        { name: "ГК «Титан»", region: "Архангельская область", volume: 20000, supply: "Крупный экспорт (Европа, Азия)" },
+        { name: "ООО «Вологодские биотопливные технологии»", region: "Вологодская область", volume: 6500, supply: "СЗФО, Санкт-Петербург" },
         { name: "ООО «Костромской брикет»", region: "Костромская область", volume: 4500, supply: "Центральная Россия" },
-        { name: "ООО «Сыктывкарский ЛПК»", region: "Республика Коми", volume: 9000, supply: "Экспорт, Северо-Западный федеральный округ" },
-        { name: "ООО «Биотопливная компания «Европеллет»", region: "Свердловская область", volume: 8500, supply: "Уральский федеральный округ, экспорт через порты" },
+        { name: "ООО «Сыктывкарский ЛПК»", region: "Республика Коми", volume: 9000, supply: "Экспорт, СЗФО" },
+        { name: "ООО «Биотопливная компания Европеллет»", region: "Свердловская область", volume: 8500, supply: "Уральский ФО, экспорт через порты" },
         { name: "ООО «Тверской гранульно-брикетный завод»", region: "Тверская область", volume: 3500, supply: "Тверская и Московская области" },
-        { name: "ООО «Лесресурс»", region: "Пермский край", volume: 5500, supply: "Уральский федеральный округ, Приволжский федеральный округ" },
-        { name: "ООО «Невский экологический ресурс»", region: "Ленинградская область", volume: 11000, supply: "Экспорт (Прибалтика), Северо-Западный федеральный округ" }
+        { name: "ООО «Лесресурс»", region: "Пермский край", volume: 5500, supply: "Уральский ФО, Приволжский ФО" },
+        { name: "ООО «Невский экологический ресурс»", region: "Ленинградская область", volume: 11000, supply: "Экспорт (Прибалтика), СЗФО" }
     ];
 
     let currentData = [...enterpriseData];
+    let chart;
 
     const regionFilter = document.getElementById('regionFilter');
     const supplySearch = document.getElementById('supplySearch');
@@ -233,72 +195,51 @@
     function fillRegionSelect() {
         const regions = [...new Set(enterpriseData.map(e => e.region))].sort();
         regionFilter.innerHTML = '<option value="all">Все регионы</option>';
-        regions.forEach(r => {
-            const option = document.createElement('option');
-            option.value = r;
-            option.textContent = r;
-            regionFilter.appendChild(option);
-        });
+        regions.forEach(r => { let opt = document.createElement('option'); opt.value = r; opt.textContent = r; regionFilter.appendChild(opt); });
     }
 
     function updateKPIs(data) {
         totalPlantsSpan.innerText = data.length;
-        const sum = data.reduce((a, b) => a + b.volume, 0);
+        let sum = data.reduce((a,b) => a + b.volume, 0);
         totalVolumeSpan.innerText = sum.toLocaleString('ru-RU');
-        const avg = data.length ? Math.round(sum / data.length) : 0;
-        avgVolumeSpan.innerText = avg.toLocaleString('ru-RU');
-        const uniqueRegions = new Set(data.map(e => e.region)).size;
-        regionsCountSpan.innerText = uniqueRegions;
+        avgVolumeSpan.innerText = data.length ? Math.round(sum/data.length).toLocaleString('ru-RU') : 0;
+        regionsCountSpan.innerText = new Set(data.map(e => e.region)).size;
     }
 
     function renderTable(data) {
-        if (!data.length) {
-            tableBody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:2rem;">🚫 Нет предприятий, соответствующих фильтрам</td></tr>';
-            return;
-        }
-        tableBody.innerHTML = data.map(e => `
-            <tr>
-                <td style="font-weight:500;">${escapeHtml(e.name)}</td>
-                <td>${escapeHtml(e.region)}</td>
-                <td><strong>${e.volume.toLocaleString('ru-RU')}</strong> т/год</td>
-                <td style="font-size:0.75rem;">${escapeHtml(e.supply)}</td>
-            </tr>
-        `).join('');
+        if(!data.length) { tableBody.innerHTML = '<tr><td colspan="4">Нет данных</td></tr>'; return; }
+        tableBody.innerHTML = data.map(e => `<tr><td>${e.name}</td><td>${e.region}</td><td><strong>${e.volume.toLocaleString('ru-RU')}</strong></td><td style="font-size:0.75rem">${e.supply}</td></tr>`).join('');
     }
 
-    function escapeHtml(str) {
-        if (!str) return '';
-        return str.replace(/[&<>]/g, function(m) {
-            if (m === '&') return '&amp;';
-            if (m === '<') return '&lt;';
-            if (m === '>') return '&gt;';
-            return m;
+    function updateChart(data) {
+        const sorted = [...data].sort((a,b) => b.volume - a.volume).slice(0,10);
+        const labels = sorted.map(e => e.name.length > 20 ? e.name.slice(0,18)+'…' : e.name);
+        const volumes = sorted.map(e => e.volume);
+        if(chart) chart.destroy();
+        const ctx = document.getElementById('topChart').getContext('2d');
+        chart = new Chart(ctx, {
+            type: 'bar',
+            data: { labels, datasets: [{ label: 'тонн/год', data: volumes, backgroundColor: '#2f9e68', borderRadius: 8 }] },
+            options: { responsive: true, maintainAspectRatio: true, plugins: { legend: { position: 'top' } }, scales: { y: { beginAtZero: true, ticks: { callback: v => v.toLocaleString('ru-RU') } } } }
         });
     }
 
     function applyFilters() {
-        const selectedRegion = regionFilter.value;
-        const searchTerm = supplySearch.value.trim().toLowerCase();
-        const minVolume = parseFloat(minVolumeFilter.value);
-        const isValidVolume = !isNaN(minVolume) && minVolume >= 0;
-
-        const filtered = enterpriseData.filter(enterprise => {
-            if (selectedRegion !== 'all' && enterprise.region !== selectedRegion) return false;
-            if (searchTerm !== "" && !enterprise.supply.toLowerCase().includes(searchTerm)) return false;
-            if (isValidVolume && enterprise.volume < minVolume) return false;
+        let filtered = enterpriseData.filter(e => {
+            if(regionFilter.value !== 'all' && e.region !== regionFilter.value) return false;
+            let search = supplySearch.value.trim().toLowerCase();
+            if(search && !e.supply.toLowerCase().includes(search)) return false;
+            let minVol = parseInt(minVolumeFilter.value);
+            if(!isNaN(minVol) && minVol > 0 && e.volume < minVol) return false;
             return true;
         });
         currentData = filtered;
         updateKPIs(currentData);
         renderTable(currentData);
+        updateChart(currentData);
     }
 
-    function resetFilters() {
-        regionFilter.value = 'all';
-        supplySearch.value = '';
-        minVolumeFilter.value = '0';
-        applyFilters();
-    }
+    function resetFilters() { regionFilter.value = 'all'; supplySearch.value = ''; minVolumeFilter.value = '0'; applyFilters(); }
 
     fillRegionSelect();
     regionFilter.addEventListener('change', applyFilters);
