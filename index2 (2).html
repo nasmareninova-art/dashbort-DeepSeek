@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>Дашборд: Производство топливных брикетов в РФ</title>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        body {
+            background: #f0f4f8;
+            font-family: 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+            padding: 30px 24px;
+            color: #1a2c3e;
+        }
+        .dashboard-container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        .header {
+            margin-bottom: 28px;
+        }
+        .header h1 {
+            font-size: 1.9rem;
+            font-weight: 600;
+            background: linear-gradient(135deg, #1f6e43, #2b8b5a);
+            background-clip: text;
+            -webkit-background-clip: text;
+            color: transparent;
+        }
+        .header p {
+            color: #4a627a;
+            margin-top: 8px;
+            border-left: 4px solid #2b8b5a;
+            padding-left: 16px;
+        }
+        .kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 32px;
+        }
+        .kpi-card {
+            background: white;
+            border-radius: 24px;
+            padding: 20px 18px;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.03);
+            border: 1px solid #e2edf2;
+            transition: 0.2s;
+        }
+        .kpi-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 16px 28px rgba(0,0,0,0.08);
+        }
+        .kpi-label {
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-weight: 600;
+            color: #6c8eae;
+            margin-bottom: 10px;
+        }
+        .kpi-value {
+            font-size: 2.2rem;
+            font-weight: 800;
+            color: #1e4a3b;
+        }
+        .kpi-unit {
+            font-size: 0.9rem;
+            font-weight: normal;
+            color: #6f8faa;
+        }
+        .chart-filter-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 28px;
+            margin-bottom: 36px;
+        }
+        .chart-box {
+            flex: 2;
+            min-width: 260px;
+            background: white;
+            border-radius: 28px;
+            padding: 20px;
+            border: 1px solid #e9f0f5;
+            box-shadow: 0 6px 16px rgba(0,0,0,0.03);
+        }
+        .filter-box {
+            flex: 1;
+            min-width: 220px;
+            background: white;
+            border-radius: 28px;
+            padding: 20px;
+            border: 1px solid #e9f0f5;
+        }
+        .filter-box h3, .chart-box h3 {
+            font-weight: 600;
+            font-size: 1.2rem;
+            margin-bottom: 16px;
+            color: #1e3e3a;
+            border-left: 4px solid #2b8b5a;
+            padding-left: 12px;
+        }
+        .filter-group {
+            margin-bottom: 24px;
+        }
+        .filter-group label {
+            font-weight: 600;
+            font-size: 0.8rem;
+            display: block;
+            margin-bottom: 8px;
+            color: #2c5a6e;
+        }
+        select, .search-input {
+            width: 100%;
+            padding: 10px 12px;
+            border-radius: 18px;
+            border: 1px solid #cbdbe2;
+            background: white;
+            font-size: 0.9rem;
+            font-family: inherit;
+        }
+        select:focus, .search-input:focus {
+            outline: none;
+            border-color: #2b8b5a;
+            box-shadow: 0 0 0 2px rgba(43,139,90,0.2);
+        }
+        .reset-btn {
+            background: #eff3f6;
+            border: none;
+            padding: 8px 14px;
+            border-radius: 40px;
+            font-weight: 500;
+            margin-top: 12px;
+            width: 100%;
+            cursor: pointer;
+            font-size: 0.8rem;
+            color: #2c5a4a;
+        }
+        .reset-btn:hover {
+            background: #dfe8ef;
+        }
+        .stats-note {
+            font-size: 0.75rem;
+            color: #5c7f98;
+            margin-top: 18px;
+            text-align: center;
+            border-top: 1px dashed #e0ebf0;
+            padding-top: 14px;
+        }
+        .table-wrapper {
+            background: white;
+            border-radius: 28px;
+            border: 1px solid #e9f0f5;
+            overflow-x: auto;
+            box-shadow: 0 6px 14px rgba(0,0,0,0.02);
+            margin-top: 20px;
+        }
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.85rem;
+            min-width: 700px;
+        }
+        .data-table th {
+            background: #f5fafd;
+            padding: 16px 14px;
+            text-align: left;
+            font-weight: 700;
+            color: #1f4f44;
+            border-bottom: 1px solid #dde6ec;
+        }
+        .data-table td {
+            padding: 12px 14px;
+            border-bottom: 1px solid #edf2f6;
+            color: #1f3b44;
+            vertical-align: top;
+        }
+        .data-table tr:hover {
+            background: #fafeff;
+        }
+        .region-badge {
+            background: #e2f0ea;
+            padding: 4px 10px;
+            border-radius: 40px;
+            display: inline-block;
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+        footer {
+            margin-top: 40px;
+            font-size: 0.7rem;
+            text-align: center;
+            color: #7c9bb0;
+            border-top: 1px solid #e2edf2;
+            padding-top: 22px;
+        }
+        max-width: 680px {
+            body { padding: 20px 16px; }
+            .kpi-value { font-size: 1.6rem; }
+        }
+    </style>
+</head>
+<body>
+<div class="dashboard-container">
+    <div class="header">
+        <h1>📊 Производство топливных брикетов в России</h1>
+        <p>Анализ объёмов производства, географии поставок и ключевых игроков (данные по 16 предприятиям)</p>
+    </div>
+
+    <div class="kpi-grid" id="kpiContainer">
+        <div class="kpi-card"><div class="kpi-label">🏭 Всего предприятий</div><div class="kpi-value" id="totalPlants">-</div></div>
+        <div class="kpi-card"><div class="kpi-label">📦 Суммарный объём (тонн/год)</div><div class="kpi-value" id="totalVolume">-</div></div>
+        <div class="kpi-card"><div class="kpi-label">📈 Средний объём на завод</div><div class="kpi-value" id="avgVolume">-</div></div>
+        <div class="kpi-card"><div class="kpi-label">🌍 Регионов-участников</div><div class="kpi-value" id="uniqueRegions">-</div></div>
+    </div>
+
+    <div class="chart-filter-row">
+        <div class="chart-box">
+            <h3>📊 ТОП-10 производителей по объёму (тонн/год)</h3>
+            <canvas id="productionChart" width="400" height="280" style="max-height: 320px; width: 100%;"></canvas>
+            <div class="stats-note">* По всем предприятиям из таблицы, сортировка по убыванию.</div>
+        </div>
+        <div class="filter-box">
+            <h3>🔍 Фильтровать таблицу</h3>
+            <div class="filter-group">
+                <label>📍 Регион базирования</label>
+                <select id="regionFilter">
+                    <option value="all">Все регионы</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <label>📌 Направление поставок (ключевое слово)</label>
+                <input type="text" id="supplySearch" class="search-input" placeholder="Напр.: Экспорт, Европа, СЗФО..." autocomplete="off">
+            </div>
+            <div class="filter-group">
+                <label>📏 Мин. объём производства (тонн)</label>
+                <input type="number" id="minVolumeFilter" class="search-input" placeholder="от 0" value="0" step="500">
+                </div>
+            <button id="resetFiltersBtn" class="reset-btn">⟳ Сбросить фильтры</button>
+            <div class="stats-note" style="margin-top: 14px;">Таблица ниже обновляется автоматически</div>
+        </div>
+    </div>
+
+    <div class="table-wrapper">
+        <table class="data-table" id="dataTable">
+            <thead>
+                <tr><th>Название предприятия</th><th>Регион базирования</th><th>Объём (тонн/год)</th><th>Основные направления поставок</th></tr>
+            </thead>
+            <tbody id="tableBody"></tbody>
+        </table>
+    </div>
+    <footer>Источник: данные предприятий РФ (Таблица 1). Дашборд интерактивный — график и таблица динамически связаны с фильтрами.</footer>
+</div>
+
+<script>
+    // --------------------------------------------------------------
+    // ИСПРАВЛЕННЫЕ ДАННЫЕ (полная копия из Excel)
+    // --------------------------------------------------------------
+    const enterpriseData = [
+        { name: "ООО «Лестех»", region: "Ленинградская область", volume: 15000, supply: "Экспорт (Европа), опт по РФ, розница в СЗФО" },
+        { name: "Группа компаний «Светлые поля» («ЛПК»)", region: "Новгородская область", volume: 25000, supply: "Экспорт (Япония, Ю. Корея), федеральные сети РФ" },
+        { name: "ООО «ЭкоЭнергоТех»", region: "Тверская область", volume: 8000, supply: "Центральная Россия, локальная розница" },
+        { name: "ООО «Русские брикеты»", region: "Кировская область", volume: 12000, supply: "Экспорт (Европа), Уральский федеральный округ" },
+        { name: "ООО «БиоТопливо-Инвест»", region: "Калужская область", volume: 5000, supply: "Московский регион, центральный федеральный округ" },
+        { name: "АО «Устьянский лесопромышленный комплекс»", region: "Архангельская область", volume: 18000, supply: "Экспорт (Скандинавия), СЗФО" },
+        { name: "ООО «Брикетный завод «Тайга»", region: "Иркутская область", volume: 10000, supply: "Сибирский федеральный округ, экспорт (Китай, Монголия)" },
+        { name: "ООО «Эко-Лес»", region: "Вологодская область", volume: 7000, supply: "СЗФО, ЦФО" },
+        { name: "ГК «Титан»", region: "Архангельская область", volume: 20000, supply: "Крупный экспорт (Европа, Азия), федеральные поставки" },
+        { name: "ООО «Вологодские биотопливные технологии»", region: "Вологодская область", volume: 6500, supply: "Северо-Западный федеральный округ, Санкт-Петербург" },
+        { name: "ООО «Костромской брикет»", region: "Костромская область", volume: 4500, supply: "Центральная Россия" },
+        { name: "ООО «Сыктывкарский ЛПК»", region: "Республика Коми", volume: 9000, supply: "Экспорт, Северо-Западный федеральный округ" },
+        { name: "ООО «Биотопливная компания «Европеллет»", region: "Свердловская область", volume: 8500, supply: "Уральский федеральный округ, экспорт через порты" },
+        { name: "ООО «Тверской гранульно-брикетный завод»", region: "Тверская область", volume: 3500, supply: "Тверская и Московская области" },
+        { name: "ООО «Лесресурс»", region: "Пермский край", volume: 5500, supply: "Уральский федеральный округ, Приволжский федеральный округ" },
+        { name: "ООО «Невский экологический ресурс»", region: "Ленинградская область", volume: 11000, supply: "Экспорт (Прибалтика), Северо-Западный федеральный округ" }
+    ];
+
+    let currentData = [...enterpriseData];
+    let chart = null;
+
+    // Элементы DOM
+    const regionFilter = document.getElementById('regionFilter');
+    const supplySearch = document.getElementById('supplySearch');
+    const minVolumeFilter = document.getElementById('minVolumeFilter');
+    const resetBtn = document.getElementById('resetFiltersBtn');
+    const tableBody = document.getElementById('tableBody');
+
+    // --- Заполнение выпадающего списка регионов ---
+    function fillRegionSelect() {
+        const regions = [...new Set(enterpriseData.map(item => item.region))].sort();
+        regionFilter.innerHTML = '<option value="all">Все регионы</option>';
+        regions.forEach(reg=> {
+            const option = document.createElement('option');
+            option.value = reg;
+            option.textContent = reg;
+            regionFilter.appendChild(option);
+        });
+    }
+
+    // --- Экранирование HTML ---
+    function escapeHtml(str) {
+        if (!str) return '';
+        return str.replace(/[&<>]/g, function(m) {
+            if (m === '&') return '&amp;';
+            if (m === '<') return '&lt;';
+            if (m === '>') return '&gt;';
+            return m;
+        });
+    }
+
+    // --- Обновление KPI карточек ---
+    function updateKPI(data) {
+        const totalPlants = data.length;
+        const totalVolume = data.reduce((sum, curr) => sum + curr.volume, 0);
+        const avgVolume = totalPlants > 0 ? Math.round(totalVolume / totalPlants) : 0;
+        const uniqueRegions = new Set(data.map(item => item.region)).size;
+
+        document.getElementById('totalPlants').innerText = totalPlants;
+        document.getElementById('totalVolume').innerHTML = totalVolume.toLocaleString('ru-RU') + ' <span class="kpi-unit">т</span>';
+        document.getElementById('avgVolume').innerHTML = avgVolume.toLocaleString('ru-RU') + ' <span class="kpi-unit">т</span>';
+        document.getElementById('uniqueRegions').innerText = uniqueRegions;
+    }
+
+    // --- Отрисовка таблицы ---
+    function renderTable(data) {
+        if (!tableBody) return;
+        if (data.length === 0) {
+            tableBody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding: 40px;">📭 Нет данных, соответствующих фильтрам</td></tr>';
+            return;
+        }
+        let html = '';
+        for (let item of data) {
+            html += `
+                <tr>
+                    <td style="font-weight:500;">${escapeHtml(item.name)}</td>
+                    <td><span class="region-badge">${escapeHtml(item.region)}</span></td>
+                    <td><strong>${item.volume.toLocaleString('ru-RU')}</strong> т/год</td>
+                    <td>${escapeHtml(item.supply)}</td>
+                </tr>
+            `;
+        }
+        tableBody.innerHTML = html;
+    }
+
+    // --- Обновление графика (ТОП-10) ---
+    function updateChart(data) {
+        const canvas = document.getElementById('productionChart');
+        if (!canvas) return;
+        const ctx = canvas.getContext('2d');
+
+        // Сортируем и берём топ-10
+        const sorted = [...data].sort((a, b) => b.volume - a.volume);
+        const top10 = sorted.slice(0, 10);
+        const labels = top10.map(item => {
+            let name = item.name;
+            if (name.length > 30) name = name.substring(0, 27) + '…';
+            return name;
+        });
+        const volumes = top10.map(item => item.volume);
+
+        if (chart) {
+            chart.data.labels = labels;
+            chart.data.datasets[0].data = volumes;
+            chart.update();
+        } else {
+            chart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Объем производства (тонн/год)',
+                        data: volumes,
+                        backgroundColor: '#3fa37c',
+                        borderRadius: 8,
+                        barPercentage: 0.7
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    plugins: {
+                        legend: { position: 'top' },
+                        tooltip: { callbacks: { label: (ctx) => `${ctx.raw.toLocaleString('ru-RU')} т/год` } }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: { display: true, text: 'Тонн в год', font: { weight: 'bold' } },
+                            ticks: { callback: (val) => val.toLocaleString('ru-RU') }
+                        },
+                        x: { ticks: { autoSkip:true, maxRotation: 35, minRotation: 25, font: { size: 10 } } }
+                    }
+                }
+            });
+        }
+    }
+
+    // --- Применение всех фильтров ---
+    function applyFilters() {
+        const selectedRegion = regionFilter.value;
+        const searchKeyword = supplySearch.value.trim().toLowerCase();
+        const minVolume = parseFloat(minVolumeFilter.value);
+        const minVolValid = isNaN(minVolume) ? 0 : minVolume;
+
+        const filtered = enterpriseData.filter(item => {
+            if (selectedRegion !== 'all' && item.region !== selectedRegion) return false;
+            if (searchKeyword !== '' && !item.supply.toLowerCase().includes(searchKeyword)) return false;
+            if (item.volume < minVolValid) return false;
+            return true;
+        });
+
+        currentData = filtered;
+        updateKPI(currentData);
+        renderTable(currentData);
+        updateChart(currentData);
+    }
+
+    // --- Сброс ---
+    function resetFilters() {
+        regionFilter.value = 'all';
+        supplySearch.value = '';
+        minVolumeFilter.value = '0';
+        applyFilters();
+    }
+
+    // --- Инициализация ---
+    function init() {
+        fillRegionSelect();
+        // Устанавливаем обработчики
+        regionFilter.addEventListener('change', applyFilters);
+        supplySearch.addEventListener('input', applyFilters);
+        minVolumeFilter.addEventListener('input', applyFilters);
+        resetBtn.addEventListener('click', resetFilters);
+        
+        // Первичный рендер
+        currentData = [...enterpriseData];
+        updateKPI(currentData);
+        renderTable(currentData);
+        updateChart(currentData);
+    }
+
+    // Запуск после загрузки DOM
+    document.addEventListener('DOMContentLoaded', init);
+</script>
+</body>
+</html>
